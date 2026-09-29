@@ -8298,7 +8298,8 @@ function renderDevisEditorBody(){
       <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
       <div class="grid sm:grid-cols-2 gap-4 mb-5 max-w-md ml-auto">
         <div class="field"><label>Réduction (montant)</label>${fieldWrap('➖',`<input id="dvReduction" type="number" step="1" value="${d.reduction||0}">`)}</div>
-        <div class="field"><label>Autre frais</label>${fieldWrap('➕',`<input id="dvAutreFrais" type="number" step="1" value="${d.autre_frais||0}">`)}</div>
+        <div class="field"><label>Main-d'œuvre facturée</label>${fieldWrap('👷',`<input id="dvMainOeuvre" type="number" step="1" value="${d.main_oeuvre||0}">`)}</div>
+        <div class="field"><label>Autres charges facturées</label>${fieldWrap('➕',`<input id="dvAutreFrais" type="number" step="1" value="${d.autre_frais||0}">`)}</div>
       </div>
       <div class="flex justify-end gap-6 text-sm mb-5">
         <div>Total sans remise : <b>${money(total)}</b></div>
@@ -8359,11 +8360,11 @@ function onProduitSelect(i,produitId){
   renderDevisEditorBody();
 }
 async function saveDevis(){
-  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),categorie:val('dvCategorie')||null,date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier'),reduction:+val('dvReduction')||0,autre_frais:+val('dvAutreFrais')||0};
+  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),categorie:val('dvCategorie')||null,date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier'),reduction:+val('dvReduction')||0,autre_frais:+val('dvAutreFrais')||0,main_oeuvre:+val('dvMainOeuvre')||0};
   if(!header.client_id){ toast('Sélectionnez un client.','error'); return; }
   const lignes=devisEditorState.lignes;
   const sousTotal=lignes.reduce((s,l)=>s+ligneTotal(l),0);
-  header.total=sousTotal-header.reduction+header.autre_frais;
+  header.total=sousTotal-header.reduction+header.autre_frais+header.main_oeuvre;
   let devisId=devisEditorState.devis.id;
   let error;
   if(devisId){ ({error}=await sb.from('devis').update(header).eq('id',devisId)); }
@@ -8415,12 +8416,14 @@ function docLignesRows(lignes){
   });
   return html;
 }
-function docTotalsHtml(sousTotal,reduction,autreFrais){
-  const total=sousTotal-reduction+autreFrais;
+function docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre){
+  mainOeuvre=+mainOeuvre||0;
+  const total=sousTotal-reduction+autreFrais+mainOeuvre;
   return `<div class="doc-totals">
     <div><span>Total sans remise</span><b>${money(sousTotal)}</b></div>
     <div><span>Réduction</span><b>${money(reduction)}</b></div>
-    <div><span>Autre frais</span><b>${money(autreFrais)}</b></div>
+    ${mainOeuvre?`<div><span>Main-d'œuvre</span><b>${money(mainOeuvre)}</b></div>`:''}
+    <div><span>Autres charges</span><b>${money(autreFrais)}</b></div>
     <div class="doc-total-final"><span>Montant total à payer</span><b>${money(total)}</b></div>
   </div>`;
 }
@@ -8879,7 +8882,7 @@ async function renderDevisDetail(el){
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
         <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
       </table></div>
-      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0)}</div>
       ${docNotesHtml()}
     </div>
     ${await fichesExecutionSectionHtml(d.id)}`;
@@ -8976,11 +8979,11 @@ async function printDevis(devisId){
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  await impEcrire(win,{type:'DEVIS',titre:d.libelle||'Devis',numero:d.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0),tiers:nomTiers(d.clients)},printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  await impEcrire(win,{type:'DEVIS',titre:d.libelle||'Devis',numero:d.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0)+(+d.main_oeuvre||0),tiers:nomTiers(d.clients)},printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0));
   win.document.close(); win.focus();
 }
 function nomTiers(c){ return c?([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise||''):''; }
-function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais){
+function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais,mainOeuvre){
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${type} ${escapeHtml(code)}</title>
     <style>
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
@@ -9007,7 +9010,7 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
     <h3>${type} : ${escapeHtml(libelle||'—')}</h3>
     <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
     <tbody>${docLignesRows(lignes)}</tbody></table>
-    ${docTotalsHtml(sousTotal,reduction,autreFrais)}
+    ${docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre)}
     ${docNotesHtml()}
     </body></html>`;
 }
@@ -9136,7 +9139,7 @@ async function renderFactureDetail(el){
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
         <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
       </table></div>
-      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0)}</div>
       ${docNotesHtml()}
     </div>
     <div class="page-card mt-4">
@@ -9155,7 +9158,7 @@ async function printFacture(factureId){
   const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  await impEcrire(win,{type:'FACTURE',titre:d.libelle||'Facture',numero:f.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0),tiers:nomTiers(f.clients)},printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  await impEcrire(win,{type:'FACTURE',titre:d.libelle||'Facture',numero:f.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0)+(+d.main_oeuvre||0),tiers:nomTiers(f.clients)},printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0));
   win.document.close(); win.focus();
 }
 
