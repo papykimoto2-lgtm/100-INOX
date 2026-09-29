@@ -8394,9 +8394,11 @@ function docLignesRows(lignes){
   let num=0, html='';
   Object.entries(groupes).forEach(([piece,rows])=>{
     if(piece) html+=`<tr><td colspan="9" style="font-style:italic;font-weight:700;padding:8px 4px 4px;border:0">${escapeHtml(piece)}</td></tr>`;
+    let sousTotalGroupe=0;
     rows.forEach(l=>{
       num++;
       const pub=+l.prix_unitaire||0, remise=+l.remise_pct||0, pur=pub*(1-remise/100), mt=(+l.quantite||0)*pur;
+      sousTotalGroupe+=mt;
       html+=`<tr>
         <td><span class="doc-num">${num}</span></td>
         <td>${escapeHtml(l.titre)}</td>
@@ -8409,6 +8411,7 @@ function docLignesRows(lignes){
         <td class="tr doc-mt">${money(mt)}</td>
       </tr>`;
     });
+    if(piece) html+=`<tr><td colspan="8" class="tr" style="font-weight:800;text-transform:uppercase;font-size:11px;background:#f5f3ff;border-bottom:1px solid #ddd6fe">Sous-total ${escapeHtml(piece)}</td><td class="tr doc-mt" style="background:#f5f3ff;border-bottom:1px solid #ddd6fe">${money(sousTotalGroupe)}</td></tr>`;
   });
   return html;
 }
