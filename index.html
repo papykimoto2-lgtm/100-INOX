@@ -8416,7 +8416,7 @@ function docLignesRows(lignes){
   });
   return html;
 }
-function docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre){
+function docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre,type){
   mainOeuvre=+mainOeuvre||0;
   const total=sousTotal-reduction+autreFrais+mainOeuvre;
   return `<div class="doc-totals">
@@ -8425,7 +8425,8 @@ function docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre){
     ${mainOeuvre?`<div><span>Main-d'œuvre</span><b>${money(mainOeuvre)}</b></div>`:''}
     <div><span>Autres charges</span><b>${money(autreFrais)}</b></div>
     <div class="doc-total-final"><span>Montant total à payer</span><b>${money(total)}</b></div>
-  </div>`;
+  </div>
+  <div style="margin-top:12px;font-size:12.5px"><b>Arrêté ${type==='FACTURE'?'la présente facture':type==='DEVIS'?'le présent devis':'le présent document'} à la somme de :</b> <i>${escapeHtml(montantEnLettres(total))} francs CFA</i></div>`;
 }
 /* ============================== MOTEUR D'IMPRESSION (tous les documents imprimés) ==============================
    Un seul moteur pour TOUT ce qui sort sur papier : devis, factures, reçus et tickets, bons (caisse, transfert),
@@ -8882,7 +8883,7 @@ async function renderDevisDetail(el){
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
         <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
       </table></div>
-      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0)}</div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0,'DEVIS')}</div>
       ${docNotesHtml()}
     </div>
     ${await fichesExecutionSectionHtml(d.id)}`;
@@ -9010,7 +9011,7 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
     <h3>${type} : ${escapeHtml(libelle||'—')}</h3>
     <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
     <tbody>${docLignesRows(lignes)}</tbody></table>
-    ${docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre)}
+    ${docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre,type)}
     ${docNotesHtml()}
     </body></html>`;
 }
@@ -9139,7 +9140,7 @@ async function renderFactureDetail(el){
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
         <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
       </table></div>
-      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0)}</div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0,'FACTURE')}</div>
       ${docNotesHtml()}
     </div>
     <div class="page-card mt-4">
