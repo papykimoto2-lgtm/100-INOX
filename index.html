@@ -8358,7 +8358,14 @@ function updateLigne(i,field,value){
 function onProduitSelect(i,produitId){
   const p=(window._produitsCache||[]).find(x=>x.id===produitId);
   devisEditorState.lignes[i].produit_id=produitId||null;
-  if(p){ devisEditorState.lignes[i].titre=p.nom; devisEditorState.lignes[i].cout_materiel_pct=p.cout_materiel_pct; }
+  if(p){
+    const l=devisEditorState.lignes[i], c=p.config_json||{};
+    l.titre=p.nom; l.cout_materiel_pct=p.cout_materiel_pct;
+    l.prix_unitaire=+p.prix_vente||0;
+    // Dimensions du produit configuré (saisies en mm dans le configurateur) → cm dans le devis
+    if(+c.w>0) l.largeur=Math.round(+c.w/10*10)/10;
+    if(+c.h>0) l.hauteur=Math.round(+c.h/10*10)/10;
+  }
   renderDevisEditorBody();
 }
 async function saveDevis(){
